@@ -1,0 +1,163 @@
+---
+title: "The Relation Between Heart Disease and Location"
+author: "Rabiat Atanda and John Bugner"
+date: "`r Sys.Date()`"
+output:
+  slidy_presentation: default
+  powerpoint_presentation: default
+  beamer_presentation: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+## Introduction
+Heart disease is one of the most life-draining health conditions that can occur in human life. Much has been written about how this condition relates to age and work-life balance, but little has been written about how prevalence can differ with location, year and disease types.
+
+## Motivation
+We are examining the mean prevalence of heart disease as affaected year, location and heart disease types 
+## Scientific Research
+Heart condition remains  a very costly health condition to manage among medicare patients with its cost greatly evident in the heavy degree of medical facility use, impact of its cost to the health care system as well as the patients in question (Ward, et al., 2017). Despite its being preventable, it remains the major cause of death and disability among medicare patients with one heart condition or the other than those with no heart condition (Ahmad and Anderson, 2020), the best is to not have it at all. 
+Tsao et al. (2022) in their report on heart disease and stroke Statistics discussed how health behaviours and health factors influence the risk of heart disease, which include and not limited to nutrition, smoking and weight.
+Little is however written about how mean prevalence may differ with year, location and disease types, which is our major focus in this report.
+
+
+## Study Description and Methods
+
+### Population of Interest
+Our population of interest is the Medicare patients in the United States, who suffer from at least one heart disease condition. Consequently, our data was compiled by the Center for Medicare and Medicaid Services across many categories, although, we downloaded it from Kaggle.
+
+We had a total sample size of 42111 curated into 3120 categorized based on different variables. Our variables of interest are  (2004 to 2013), location (52 states in the United States), disease types (6) and prevalence (response variable) and these are the columns we kept for our study.
+
+Therefore, response variable is the mean prevalence and quantitative, while our explanatory variables are year, location and disease types, they are categorical.
+```{r}
+library(tidyr)
+library(readr)
+library(ggplot2)
+#options(max.print = 999999)
+#install.packages("writexl")
+library(writexl)
+library(tidyverse)
+prevalence <- read_csv("C:/Users/Admin/OneDrive/Books/R-Books/669_Heart disease data.csv"); prevalence
+View(prevalence)
+str(prevalence)
+glimpse(prevalence)
+#install.packages("skimr")
+library(skimr)
+skim_without_charts(prevalence)
+sum(is.na(prevalence))
+new_prev <- na.omit(prevalence);new_prev
+sum(is.na(new_prev))
+
+new_prev %>% group_by(Location) %>%
+  summarise(percent = 100  * n() / nrow(new_prev))
+
+new_prev %>% group_by(Topic) %>%
+  summarise(percent = 100  * n() / nrow(new_prev))
+
+new_prev %>% group_by(Year) %>%
+  summarise(percent = 100  * n() / nrow(new_prev))
+
+write_xlsx(new_prev, "C:/Users/Admin/OneDrive/Books/R-Books\\new_prev.xlsx")
+library(dplyr)
+prev_tbl <- new_prev %>% 
+  group_by(Year, Location, Topic)%>%
+  summarise(mean_prev = mean(Prevalence, data=new_prev));prev_tbl
+prev_tbl <- mutate(prev_tbl, 
+              location=factor(Location),
+              d_type=factor(Topic),
+              year=factor(Year),
+              prevalence=as.double(mean_prev)); prev_tbl
+View(prev_tbl)
+str(prev_tbl)
+summary(prev_tbl)
+
+
+
+```
+Consequently, our data show stroke had the maximum prevalence of 34.066 in 2013 occuring in Colorado, while heart attack(acute myocardial infarction) had the minimum prevalence of 1.889 in Alabama in year 2004.
+
+
+### Data Representation
+We display our data in histogram for visual test of normality. we further test the normality of our data using the shapiro-Wilk test. Both procedure showed that our data does not come from a normal distribution, therefore we performed Boxcox transformation.
+Our statement of Hypothesis for normality test using Shapiro-Wilk test:
+H0: data follows normal distribution
+Ha: Data does not follow normal distibution
+
+```{r}
+##Checking for normality
+## H0: Data comes from normal distribution
+hist(prev_tbl$mean_prev)
+
+#Shapiro-Wilk test for  Normality
+(shapiro.test(sample(x=prev_tbl$mean_prev)))
+
+print(qqnorm(prev_tbl$mean_prev, main = "Normality Check"))
+print(qqline(prev_tbl$mean_prev))
+#Transformation to Normal
+library(MASS)
+b_669 = boxcox(lm(prev_tbl$mean_prev ~ 1));b_669
+## Exact lambda
+(lambda <- b_669$x[which.max(b_669$y)]) # .1818182
+print(prev_tbl$adj_prev <- (prev_tbl$mean_prev ^ lambda - 1) / lambda)
+
+print(qqnorm(prev_tbl$adj_prev, main = "Normality Check"))
+qqline(prev_tbl$adj_prev)
+
+hist(prev_tbl$adj_prev)
+```
+
+### Inferential Method
+Since we have our response variable (mean prevalence) to be a quantitative variable and our explanatory variables to be categorical, analysis of variance (ANOVA) test is the best inferential method for our data (Ray, 2016). This was based on the assertion of Blanca et al., 2016, that ANOVA analysis is till a valid option for non-normal data provided that some certain conditions are met, which is transformation as we have conducted previously. 
+Consequently, our hypothesis states thus:
+H0 : There is no significant difference in the mean prevalence of heart disease with respect to year, location and disease type
+Ha: There is significant difference in the population mean prevalence of heart bdisease with respect to year, location and disease types.
+
+
+## Result
+
+Our test result show that we have sufficient evidence to reject H0 and conclude that the population mean prevalence differ with respect to year, location and disease type with p-value of less than 0.00005, which is less than 0.05 significant level. This was followed by Tukey's method of multiple comparison test to unveil the mean that were significantly with respect to the levels of our explanatory variables.
+
+Our multiple comparison test shows mean prevalence differ significantly with all disease types when compared. This is also true with location and year but with a few exception as shown on the table.
+
+```{r}
+anova_669 <- aov(adj_prev ~ 
+                           location + year +
+                           d_type, data = prev_tbl); anova_669
+
+summary(anova_669)
+interaction <- summary(aov(adj_prev ~ Year:Location:d_type, 
+                 prev_tbl)); interaction
+
+TukeyHSD(anova_669, conf.level = .95)
+
+
+```
+
+## Conclusion
+
+From our result of our analyses we are able to assert that prevalence of heart disease vary with location and different disease types.
+
+In that case we hope that our finding will encourage further research into why certain locations have a higher prevalence than others. With this knowledge, the locations, and therefore people's lives, could be improved.
+
+
+## References
+
+Ahmad, F.B, Anderson, R.N. (2021). The Leading Causes of Death in the US for 2020. JAMA. 2021;325(18):1829-1830. doi:10.1001/jama.2021.5469
+
+Blanca, M.J., Alarcon, R., Arnau, J., Bono R and Bendayani, R. (2016). Non-normal data: Is ANOVA still a valid option? Psicothema 2017, Vol. 29, No. 4, 552-557
+doi: 10.7334/psicothema2016.383
+
+Connie W. Tsao, Aaron W. Aday, Zaid I. Almarzooq, Alvaro Alonso, Andrea Z. Beaton, Marcio S. Bittencourt, Amelia K. Boehme, Alfred E. Buxton, April P. Carson, Yvonne Commodore-Mensah, Mitchell S.V. Elkind, Kelly R. Evenson, Chete Eze-Nliam, Jane F. Ferguson, Giuliano Generoso, Jennifer E. Ho, Rizwan Kalani, Sadiya S. Khan, Brett M. Kissela, Kristen L. Knutson, Deborah A. Levine, Tené T. Lewis, Junxiu Liu, Matthew Shane Loop, Jun Ma, Michael E. Mussolino, Sankar D. Navaneethan, Amanda Marma Perak, Remy Poudel, Mary Rezk-Hanna, Gregory A. Roth, Emily B. Schroeder, Svati H. Shah, Evan L. Thacker, Lisa B. VanWagner, Salim S. Virani, Jenifer H. Voecks, Nae-Yuh Wang, Kristine Yaffe, Seth S. Martin (2022). Heart Disease and Stroke Statistics—2022 Update: A Report From the American Heart Association
+https://doi.org/10.1161/CIR.0000000000001052Circulation. 2022;145:e153–e639
+
+Kaggle (2023). Heart Disease & Stroke Prevention Heart Disease & Stroke Prevention
+Data.https://www.kaggle.com/datasets/themrityunjaypathak/heart-disease-and-strok
+e-prevention
+Ray, Sujit. (2016). Re: What if an independent variable is categorical and dependent
+variables is continuous variable?? can anyone suggest a suitable test... Retrieved
+from:
+https://www.researchgate.net/post/What_if_an_independentvariable_is_categorical_
+and_dependent_variables_iscontinuous_variable_can_anyone_suggest_a_suitable_te
+st/570cf304dc332da6df1e5c31/citation/download
